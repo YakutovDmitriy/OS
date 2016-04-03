@@ -7,6 +7,6 @@ int main() {
 	int len;
 	while ((len = read(0, buf, BUF_SIZE)) > 0) {
 		int cnt = 0;
-		while ((cnt += write(1, buf + cnt, len)) < len);
+		while ((cnt += write(1, buf + cnt, len - cnt)) < len);
 	}
 }
