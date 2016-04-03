@@ -1,0 +1,10 @@
+#!/bin/bash
+
+for link in `find -L $1` 
+do
+	difff=$(date +%s) - $(stat -c '%Y' "$link")
+	if [[ -L "$link" ]] && ! [[ -e "$link" ]] && [ $difff -ge $((60*60*24*7)) ]
+	then
+		echo "$link"
+	fi
+done
