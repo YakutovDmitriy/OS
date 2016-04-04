@@ -3,21 +3,21 @@
 #include <unistd.h>
 
 int main() {
-	char buf[2007];
+	char buffer[2007];
 	int len;
-	while (len = read(STDIN_FILENO, buf, sizeof buf)) {
+	while (len = read(STDIN_FILENO, buffer, sizeof buffer)) {
 		if (len < 0) {
-			fprintf(stderr, "Error occured while reading\n");
+			fputs("Error occured while reading", stderr);
 			return EXIT_FAILURE;
 		}
-		int wrote = 0;
-		while (wrote < len) {
-			int cur = write(STDOUT_FILENO, buf + wrote, len - wrote);
+		int written = 0;
+		while (written < len) {
+			int cur = write(STDOUT_FILENO, buffer + written, len - written);
 			if (cur < 0) {
-				fprintf(stderr, "Error occured while writing\n");
+				fputs("Error occured while writing", stderr);
 				return EXIT_FAILURE;
 			}
-			wrote += cur;
+			written += cur;
 		}
 	}
 	return EXIT_SUCCESS;
