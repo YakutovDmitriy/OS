@@ -1,12 +1,24 @@
 #include <stdio.h>
-
-int const BUF_SIZE = 2007;
+#include <stdlib.h>
+#include <unistd.h>
 
 int main() {
-	char buf[BUF_SIZE];
+	char buf[2007];
 	int len;
-	while ((len = read(0, buf, BUF_SIZE)) > 0) {
-		int cnt = 0;
-		while ((cnt += write(1, buf + cnt, len - cnt)) < len);
+	while (len = read(STDIN_FILENO, buf, sizeof buf)) {
+		if (len < 0) {
+			fprintf(stderr, "Error occured while reading\n");
+			return EXIT_FAILURE;
+		}
+		int wrote = 0;
+		while (wrote < len) {
+			int cur = write(STDOUT_FILENO, buf + wrote, len - wrote);
+			if (cur < 0) {
+				fprintf(stderr, "Error occured while writing\n");
+				return EXIT_FAILURE;
+			}
+			wrote += cur;
+		}
 	}
+	return EXIT_SUCCESS;
 }
