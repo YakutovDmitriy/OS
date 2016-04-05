@@ -45,10 +45,10 @@ bool next_line(std::string& to) {
 			return false;
 		}
 	}
-	return true;
+	return !to.empty();
 }
 
-bool print_line(int fd, std::string const& line, bool eoln) {
+bool print_line(int fd, std::string const& line, bool eoln = false) {
 	char const* buf = eoln ? (line + (char)bsn).data() : line.data();
 	size_t szbuf = 1U + line.size();
 	size_t cur = 0;
