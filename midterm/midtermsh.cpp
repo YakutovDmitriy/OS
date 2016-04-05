@@ -1,22 +1,23 @@
-#include <cstdio>
-#include <algorithm>
+#include <stdio.h>
 #include <unistd.h>
-#include <string>
-#include <vector>
-#include <cstring>
-
+#include <string.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+
+#include <algorithm>
+#include <string>
+#include <vector>
 
 char const bsn = '\n';
 
 char get_char() {
 	static char buf[2007];
-	static size_t cur = 0; 
-	static size_t len =0;
+	static size_t cur = 0;
+	static size_t len = 0;
 	if (cur >= len) {
 		len = read(0, buf, sizeof buf);
-		if (len < 0) {
+		if (len <= 0) {
 			return -1;
 		}
 		cur = 0;
@@ -40,12 +41,12 @@ bool next_line(std::string& to) {
 	return !was_error;
 }
 
-bool print_line(std::string const& line) {
+bool print_line(int fd, std::string const& line) {
 	char const* buf = (line + bsn).data();
 	size_t szbuf = 1U + line.size();
 	size_t cur = 0;
 	while (cur < line.size()) {
-		int now = write(1, buf + cur, szbuf - cur);
+		int now = write(fd, buf + cur, szbuf - cur);
 		if (now < 0) {
 			return false;
 		}
@@ -74,32 +75,54 @@ std::vector<std::string> split(std::string s, char sep) {
 	return ret;
 }
 
-void launch(std::string const& cmd, std::vector<std::string> const& args) {
-	if (!fork()) {
+int run_subcmd(std::string const& cmd, int rfd, int wfd) {
+	if (int child = fork()) {
+		return child;
+	} else {
+		auto args = split(cmd, ' ');
+		dup2(rfd, STDIN_FILENO);
+		dup2(wfd, STDOUT_FILENO);
 		char** c_args = new char*[args.size() + 1];
 		c_args[args.size()] = 0;
-		for (size_t i = 0; i < args.size(); ++i) {
-			c_args[i] = new char[args[i].size() + 1];
-			c_args[i][args[i].size()] = 0;
-			memcpy(c_args[i], args[i].data(), args[i].size());
+		for (size_t q = 0; q < args.size(); ++q) {
+			c_args[q] = new char[args[q].size() + 1];
+			c_args[q][args[q].size()] = 0;
+			memcpy(c_args[q], args[q].data(), args[q].size());
 		}
-		execvp(cmd.data(), c_args);
+		execvp(c_args[0], c_args);
 	}
 }
 
 void process(std::string const& cmd) {
 	auto subcmds = split(cmd, '|');
-	for (auto p : subcmds) {
-		auto x = split(p, ' ');
-		std::string cmd = x[0];
-		launch(cmd, x);
+	int cnt = subcmds.size();
+	std::vector<int> pids(cnt);
+
+	int p[2];
+
+	for (int i = 0; i < cnt; ++i) {
+		int new_p[2];
+		if (i + 1 < cnt) {
+			pipe2(new_p, O_CLOEXEC);
+		}
+
+		int rfd = i == 0 ? STDIN_FILENO : p[0];
+		int wfd = i + 1 == cnt ? STDOUT_FILENO : new_p[1];
+		pids[i] = run_subcmd(subcmds[i], rfd, wfd);
+
+		if (i > 0) {
+			close(p[0]);
+			close(p[1]);
+		}
+
+		std::swap(p, new_p);
 	}
 }
 
 int main() {
 	std::string cmd;
 	while (true) {
-		print_line("$");
+		print_line(STDOUT_FILENO, "$");
 		if (!next_line(cmd)) {
 			break;
 		}
