@@ -9,9 +9,9 @@
 #include <string>
 #include <vector>
 
-char const bsn = '\n';
+int const bsn = '\n';
 
-char get_char() {
+int get_char() {
 	static char buf[2007];
 	static size_t cur = 0;
 	static size_t len = 0;
@@ -27,22 +27,28 @@ char get_char() {
 
 bool next_line(std::string& to) {
 	to = std::string();
-	char ch = get_char();
-	bool was_error = ch < 0;
+	int ch = get_char();
+	if (ch < 0) {
+		return false;
+	}
 	while (ch <= bsn) {
 		ch = get_char();
-		was_error |= ch < 0;
+		if (ch < 0) {
+			return false;
+		}
 	}
 	while (ch > bsn) {
-		to.push_back(ch);
+		to.push_back((char) ch);
 		ch = get_char();
-		was_error |= ch < 0;
+		if (ch < 0) {
+			return false;
+		}
 	}
-	return !was_error;
+	return true;
 }
 
 bool print_line(int fd, std::string const& line) {
-	char const* buf = (line + bsn).data();
+	char const* buf = (line + (char)bsn).data();
 	size_t szbuf = 1U + line.size();
 	size_t cur = 0;
 	while (cur < line.size()) {
@@ -59,8 +65,17 @@ std::vector<std::string> split(std::string s, char sep) {
 	s += sep;
 	std::vector<std::string> ret;
 	std::string cur;
+	bool q1 = false, q2 = false;
 	for (char x : s) {
-		if (x == sep) {
+		if (sep == ' ' && x == '\'' && !q2) {
+			q1 ^= true;
+			continue;
+		}
+		if (sep == ' ' && x == '"' && !q1) {
+			q2 ^= true;
+			continue;
+		}
+		if (x == sep && !q1 && !q2) {
 			while (!cur.empty() && cur.back() == ' ') {
 				cur.pop_back();
 			}
@@ -120,9 +135,9 @@ void process(std::string const& cmd) {
 }
 
 int main() {
-	std::string cmd;
 	while (true) {
 		print_line(STDOUT_FILENO, "$");
+		std::string cmd;
 		if (!next_line(cmd)) {
 			break;
 		}
