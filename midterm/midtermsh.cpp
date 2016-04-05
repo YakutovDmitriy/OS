@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <signal.h>
 
 #include <algorithm>
 #include <string>
@@ -47,8 +48,8 @@ bool next_line(std::string& to) {
 	return true;
 }
 
-bool print_line(int fd, std::string const& line) {
-	char const* buf = (line + (char)bsn).data();
+bool print_line(int fd, std::string const& line, bool eoln) {
+	char const* buf = eoln ? (line + (char)bsn).data() : line.data();
 	size_t szbuf = 1U + line.size();
 	size_t cur = 0;
 	while (cur < line.size()) {
@@ -82,7 +83,7 @@ std::vector<std::string> split(std::string s, char sep) {
 			ret.push_back(cur);
 			cur.clear();
 		} else {
-			if (x != ' ' || !cur.empty()) {
+			if (x != ' ' || !cur.empty() || q1 || q2) {
 				cur += x;
 			}
 		}
@@ -108,10 +109,12 @@ int run_subcmd(std::string const& cmd, int rfd, int wfd) {
 	}
 }
 
+std::vector<pid_t> pids;
+
 void process(std::string const& cmd) {
 	auto subcmds = split(cmd, '|');
 	int cnt = subcmds.size();
-	std::vector<int> pids(cnt);
+	pids.clear();
 
 	int p[2];
 
@@ -123,7 +126,7 @@ void process(std::string const& cmd) {
 
 		int rfd = i == 0 ? STDIN_FILENO : p[0];
 		int wfd = i + 1 == cnt ? STDOUT_FILENO : new_p[1];
-		pids[i] = run_subcmd(subcmds[i], rfd, wfd);
+		pids.push_back(run_subcmd(subcmds[i], rfd, wfd));
 
 		if (i > 0) {
 			close(p[0]);
@@ -134,9 +137,22 @@ void process(std::string const& cmd) {
 	}
 }
 
+void handler(int sig) {
+	for (auto pid : pids) {
+		kill(pid, sig);
+	}
+}
+
 int main() {
+	struct sigaction sigact;
+	sigact.sa_handler = handler;
+	sigaction(SIGINT, &sigact, NULL);
+
 	while (true) {
-		print_line(STDOUT_FILENO, "$");
+		for (auto pid : pids) {
+			waitpid(pid, NULL, 0);
+		}
+		print_line(STDOUT_FILENO, "$ ", false);
 		std::string cmd;
 		if (!next_line(cmd)) {
 			break;
