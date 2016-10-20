@@ -4,7 +4,7 @@
 typedef struct sigaction act_t;
 
 void handler(int sig, siginfo_t* info, void* ctx) {
-    printf("%s from %d\n", (SIGUSR1 ? "SIGUSR1" : "SIGUSR2"), info->si_pid);
+    printf("%s from %d\n", (sig == SIGUSR1 ? "SIGUSR1" : "SIGUSR2"), info->si_pid);
 }
 
 int main() {
