@@ -22,8 +22,10 @@ int main() {
     if (sigaction(SIGUSR1, &act, NULL) || sigaction(SIGUSR2, &act, NULL)) {
         puts("Error occured while setting sigaction");
     }
+    
+    sleep(10);
 
-    if (!sleep(10)) {
+    if (!caught) {
         puts("No signals were caught");
     }
 
